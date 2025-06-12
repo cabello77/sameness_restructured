@@ -104,10 +104,10 @@ void injectMouseButtonPress(const EventPacket& pkt) {
         .mask = 0,
         .data = {
             .mouse = {
-                .x = x,
-                .y = y,
+                .button = button,
                 .clicks = 1,
-                .button = button
+                .x = x,
+                .y = y
             }
         }
     };
@@ -137,10 +137,10 @@ void injectMouseButtonRelease(const EventPacket& pkt) {
         .mask = 0,
         .data = {
             .mouse = {
-                .x = x,
-                .y = y,
+                .button = button,
                 .clicks = 1,
-                .button = button
+                .x = x,
+                .y = y
             }
         }
     };
