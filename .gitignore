@@ -1,0 +1,29 @@
+# Build artifacts
+build/
+out/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# IDE / editor settings
+.vscode/
+.idea/
+.vs/
+
+# macOS / Windows clutter
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
