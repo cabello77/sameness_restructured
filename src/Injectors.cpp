@@ -70,10 +70,12 @@ void injectKeyRelease(const EventPacket& pkt) {
         .type = EVENT_KEY_RELEASED,
         .time = pkt.timestamp,
         .mask = 0,
-        .data.keyboard = {
-            .keycode = keycode,
-            .rawcode = keycode,
-            .keychar = 0
+        .data = {
+            .keyboard = {
+                .keycode = keycode,
+                .rawcode = keycode,
+                .keychar = 0
+            }
         }
     };
     hook_post_event(&event);
@@ -100,11 +102,13 @@ void injectMouseButtonPress(const EventPacket& pkt) {
         .type = EVENT_MOUSE_PRESSED,
         .time = pkt.timestamp,
         .mask = 0,
-        .data.mouse = {
-            .x = x,
-            .y = y,
-            .clicks = 1,
-            .button = button
+        .data = {
+            .mouse = {
+                .x = x,
+                .y = y,
+                .clicks = 1,
+                .button = button
+            }
         }
     };
     hook_post_event(&event);
@@ -131,11 +135,13 @@ void injectMouseButtonRelease(const EventPacket& pkt) {
         .type = EVENT_MOUSE_RELEASED,
         .time = pkt.timestamp,
         .mask = 0,
-        .data.mouse = {
-            .x = x,
-            .y = y,
-            .clicks = 1,
-            .button = button
+        .data = {
+            .mouse = {
+                .x = x,
+                .y = y,
+                .clicks = 1,
+                .button = button
+            }
         }
     };
     hook_post_event(&event);
