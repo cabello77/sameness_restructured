@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-#  CMakeLists.txt  —  top-level build script for the “sameness” project
+#  CMakeLists.txt  —  top-level build script for the "sameness" project
 # ---------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.16)        # 3.16+ gives good IDE/xcodeproj
@@ -35,7 +35,11 @@ endif()
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_STANDARD 17)
+if(WIN32)
+    set(CMAKE_CXX_STANDARD 20)  # Windows needs C++20 for designated initializers
+else()
+    set(CMAKE_CXX_STANDARD 17)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ---------------------------------------------------------------------------
@@ -51,7 +55,7 @@ set(SAMENESS_CORE_SOURCES
     src/EventPacket.cpp
     src/EventState.cpp
     src/Injectors.cpp
-    src/logger.c           # ⬅ remove this line if you don’t use logger.c
+    src/logger.c           # ⬅ remove this line if you don't use logger.c
 )
 
 add_library(sameness_core STATIC ${SAMENESS_CORE_SOURCES})
