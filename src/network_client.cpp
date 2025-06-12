@@ -71,6 +71,73 @@ void hook_callback(uiohook_event * const event) {
         boost::asio::write(*global_socket, boost::asio::buffer(bytes));
         std::cout << "[SEND] KeyPress code=" << code << "\n";
     }
+    // --- Key released ---
+    else if (event->type == EVENT_KEY_RELEASED) {
+        uint32_t code = event->data.keyboard.keycode;
+
+        EventPacket pkt;
+        pkt.type        = EventType::KeyRelease;
+        pkt.timestamp   = currentMicroseconds();
+        pkt.payloadSize = sizeof(code);
+        pkt.payload.resize(pkt.payloadSize);
+        std::memcpy(pkt.payload.data(), &code, sizeof(code));
+
+        auto bytes = pkt.toBytes();
+        boost::asio::write(*global_socket, boost::asio::buffer(bytes));
+        std::cout << "[SEND] KeyRelease code=" << code << "\n";
+    }
+    // --- Mouse button pressed ---
+    else if (event->type == EVENT_MOUSE_PRESSED) {
+        uint16_t button = event->data.mouse.button;
+        int x = event->data.mouse.x;
+        int y = event->data.mouse.y;
+
+        EventPacket pkt;
+        pkt.type        = EventType::MouseButtonPress;
+        pkt.timestamp   = currentMicroseconds();
+        
+        // Payload: button (2 bytes) + x (2 bytes) + y (2 bytes)
+        pkt.payloadSize = sizeof(button) + 2 * sizeof(int16_t);
+        pkt.payload.resize(pkt.payloadSize);
+        
+        size_t offset = 0;
+        std::memcpy(pkt.payload.data() + offset, &button, sizeof(button));
+        offset += sizeof(button);
+        std::memcpy(pkt.payload.data() + offset, &x, sizeof(int16_t));
+        offset += sizeof(int16_t);
+        std::memcpy(pkt.payload.data() + offset, &y, sizeof(int16_t));
+
+        auto bytes = pkt.toBytes();
+        boost::asio::write(*global_socket, boost::asio::buffer(bytes));
+        std::cout << "[SEND] MouseButtonPress button=" << button 
+                 << " at (" << x << "," << y << ")\n";
+    }
+    // --- Mouse button released ---
+    else if (event->type == EVENT_MOUSE_RELEASED) {
+        uint16_t button = event->data.mouse.button;
+        int x = event->data.mouse.x;
+        int y = event->data.mouse.y;
+
+        EventPacket pkt;
+        pkt.type        = EventType::MouseButtonRelease;
+        pkt.timestamp   = currentMicroseconds();
+        
+        // Payload: button (2 bytes) + x (2 bytes) + y (2 bytes)
+        pkt.payloadSize = sizeof(button) + 2 * sizeof(int16_t);
+        pkt.payload.resize(pkt.payloadSize);
+        
+        size_t offset = 0;
+        std::memcpy(pkt.payload.data() + offset, &button, sizeof(button));
+        offset += sizeof(button);
+        std::memcpy(pkt.payload.data() + offset, &x, sizeof(int16_t));
+        offset += sizeof(int16_t);
+        std::memcpy(pkt.payload.data() + offset, &y, sizeof(int16_t));
+
+        auto bytes = pkt.toBytes();
+        boost::asio::write(*global_socket, boost::asio::buffer(bytes));
+        std::cout << "[SEND] MouseButtonRelease button=" << button 
+                 << " at (" << x << "," << y << ")\n";
+    }
 }
 
 int main(int argc, char* argv[]) {

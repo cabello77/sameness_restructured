@@ -1,5 +1,7 @@
 #include "EventPacket.h"
 #include <cstring>  // for memcpy
+#include "EventState.h"
+#include <uiohook.h>
 
 #if defined(__APPLE__)
   #include <ApplicationServices/ApplicationServices.h>
@@ -54,3 +56,88 @@
   }
 
 #endif
+
+void injectKeyRelease(const EventPacket& pkt) {
+    if (pkt.payload.size() < sizeof(uint16_t)) {
+        return;  // Invalid payload size
+    }
+    
+    uint16_t keycode;
+    std::memcpy(&keycode, pkt.payload.data(), sizeof(keycode));
+    
+    setInjectedEventFlag(true);
+    uiohook_event event = {
+        .type = EVENT_KEY_RELEASED,
+        .time = pkt.timestamp,
+        .mask = 0,
+        .data.keyboard = {
+            .keycode = keycode,
+            .rawcode = keycode,
+            .keychar = 0
+        }
+    };
+    hook_post_event(&event);
+    setInjectedEventFlag(false);
+}
+
+void injectMouseButtonPress(const EventPacket& pkt) {
+    if (pkt.payload.size() < sizeof(uint16_t) + 2 * sizeof(int16_t)) {
+        return;  // Invalid payload size
+    }
+    
+    uint16_t button;
+    int16_t x, y;
+    size_t offset = 0;
+    
+    std::memcpy(&button, pkt.payload.data() + offset, sizeof(button));
+    offset += sizeof(button);
+    std::memcpy(&x, pkt.payload.data() + offset, sizeof(x));
+    offset += sizeof(x);
+    std::memcpy(&y, pkt.payload.data() + offset, sizeof(y));
+    
+    setInjectedEventFlag(true);
+    uiohook_event event = {
+        .type = EVENT_MOUSE_PRESSED,
+        .time = pkt.timestamp,
+        .mask = 0,
+        .data.mouse = {
+            .x = x,
+            .y = y,
+            .clicks = 1,
+            .button = button
+        }
+    };
+    hook_post_event(&event);
+    setInjectedEventFlag(false);
+}
+
+void injectMouseButtonRelease(const EventPacket& pkt) {
+    if (pkt.payload.size() < sizeof(uint16_t) + 2 * sizeof(int16_t)) {
+        return;  // Invalid payload size
+    }
+    
+    uint16_t button;
+    int16_t x, y;
+    size_t offset = 0;
+    
+    std::memcpy(&button, pkt.payload.data() + offset, sizeof(button));
+    offset += sizeof(button);
+    std::memcpy(&x, pkt.payload.data() + offset, sizeof(x));
+    offset += sizeof(x);
+    std::memcpy(&y, pkt.payload.data() + offset, sizeof(y));
+    
+    setInjectedEventFlag(true);
+    uiohook_event event = {
+        .type = EVENT_MOUSE_RELEASED,
+        .time = pkt.timestamp,
+        .mask = 0,
+        .data.mouse = {
+            .x = x,
+            .y = y,
+            .clicks = 1,
+            .button = button
+        }
+    };
+    hook_post_event(&event);
+    setInjectedEventFlag(false);
+}
