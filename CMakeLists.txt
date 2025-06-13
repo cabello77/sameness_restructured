@@ -5,6 +5,9 @@
 cmake_minimum_required(VERSION 3.16)        # 3.16+ gives good IDE/xcodeproj
 project(sameness VERSION 0.1 LANGUAGES C CXX)
 
+# Set CMP0167 policy to suppress Boost warning
+cmake_policy(SET CMP0167 NEW)
+
 # ---------------------------------------------------------------------------
 #  Locate Boost (header-only Asio + Boost.System for linking)
 # ---------------------------------------------------------------------------
@@ -56,8 +59,7 @@ set(SAMENESS_CORE_SOURCES
     src/EventState.cpp
     src/Injectors.cpp
     src/logger.c     
-    src/ScreenEdgeSwitcher.cpp      # ← add this line
-    # ⬅ remove this line if you don't use logger.c
+    src/ScreenEdgeSwitcher.cpp
 )
 
 add_library(sameness_core STATIC ${SAMENESS_CORE_SOURCES})
@@ -67,14 +69,12 @@ target_include_directories(sameness_core
         ${PROJECT_SOURCE_DIR}/include
 )
 
-target_link_libraries(sameness_core PRIVATE uiohook)
-
-
-target_link_libraries(core
-    ${UIOHOOK_LIB}
-    Boost::system
-    OpenSSL::SSL
-    OpenSSL::Crypto
+target_link_libraries(sameness_core 
+    PRIVATE 
+        uiohook
+        Boost::system
+        OpenSSL::SSL
+        OpenSSL::Crypto
 )
 
 # ---------------------------------------------------------------------------

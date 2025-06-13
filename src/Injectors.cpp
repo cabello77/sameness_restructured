@@ -2,64 +2,124 @@
 #include <cstring>  // for memcpy
 #include "EventState.h"
 #include <uiohook.h>
+#include <stdexcept>
+#include <memory>
 
+// Platform-specific implementations
 #if defined(__APPLE__)
-  #include <ApplicationServices/ApplicationServices.h>
+#include <ApplicationServices/ApplicationServices.h>
 
-  void injectKeyPress(const EventPacket& pkt) {
-      uint32_t code;
-      std::memcpy(&code, pkt.payload.data(), sizeof(code));
-      CGEventRef eDown = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, true);
-      CGEventRef eUp   = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, false);
-      CGEventPost(kCGHIDEventTap, eDown);
-      CGEventPost(kCGHIDEventTap, eUp);
-      CFRelease(eDown);
-      CFRelease(eUp);
-  }
+namespace {
+    class MacOSEventInjector {
+    public:
+        static void injectKeyPress(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint32_t)) {
+                throw std::runtime_error("Invalid key press payload size");
+            }
+            
+            uint32_t code;
+            std::memcpy(&code, pkt.payload.data(), sizeof(code));
+            
+            std::unique_ptr<CGEventRef, decltype(&CFRelease)> eDown(
+                CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, true),
+                CFRelease
+            );
+            std::unique_ptr<CGEventRef, decltype(&CFRelease)> eUp(
+                CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, false),
+                CFRelease
+            );
+            
+            if (!eDown || !eUp) {
+                throw std::runtime_error("Failed to create keyboard events");
+            }
+            
+            CGEventPost(kCGHIDEventTap, eDown.get());
+            CGEventPost(kCGHIDEventTap, eUp.get());
+        }
 
-  void injectMouseMove(const EventPacket& pkt) {
-      int32_t coords[2];
-      std::memcpy(coords, pkt.payload.data(), sizeof(coords));
-      CGPoint pt = CGPointMake(coords[0], coords[1]);
-      CGEventRef e = CGEventCreateMouseEvent(
-          NULL, kCGEventMouseMoved, pt, kCGMouseButtonLeft);
-      CGEventPost(kCGHIDEventTap, e);
-      CFRelease(e);
-  }
+        static void injectMouseMove(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(int32_t) * 2) {
+                throw std::runtime_error("Invalid mouse move payload size");
+            }
+            
+            int32_t coords[2];
+            std::memcpy(coords, pkt.payload.data(), sizeof(coords));
+            
+            std::unique_ptr<CGEventRef, decltype(&CFRelease)> e(
+                CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, 
+                    CGPointMake(coords[0], coords[1]), kCGMouseButtonLeft),
+                CFRelease
+            );
+            
+            if (!e) {
+                throw std::runtime_error("Failed to create mouse event");
+            }
+            
+            CGEventPost(kCGHIDEventTap, e.get());
+        }
+    };
+    
+    using PlatformInjector = MacOSEventInjector;
+}
 
 #elif defined(_WIN32)
-  #include <Windows.h>
+#include <Windows.h>
 
-  void injectKeyPress(const EventPacket& pkt) {
-      uint32_t code;
-      std::memcpy(&code, pkt.payload.data(), sizeof(code));
-      INPUT inputs[2] = {};
-      inputs[0].type            = INPUT_KEYBOARD;
-      inputs[0].ki.wVk          = (WORD)code;
-      inputs[0].ki.dwFlags      = 0;           // key down
-      inputs[1].type            = INPUT_KEYBOARD;
-      inputs[1].ki.wVk          = (WORD)code;
-      inputs[1].ki.dwFlags      = KEYEVENTF_KEYUP;  // key up
-      SendInput(2, inputs, sizeof(INPUT));
-  }
+namespace {
+    class WindowsEventInjector {
+    public:
+        static void injectKeyPress(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint32_t)) {
+                throw std::runtime_error("Invalid key press payload size");
+            }
+            
+            uint32_t code;
+            std::memcpy(&code, pkt.payload.data(), sizeof(code));
+            
+            INPUT inputs[2] = {};
+            inputs[0].type = INPUT_KEYBOARD;
+            inputs[0].ki.wVk = static_cast<WORD>(code);
+            inputs[0].ki.dwFlags = 0;  // key down
+            
+            inputs[1].type = INPUT_KEYBOARD;
+            inputs[1].ki.wVk = static_cast<WORD>(code);
+            inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;  // key up
+            
+            if (SendInput(2, inputs, sizeof(INPUT)) != 2) {
+                throw std::runtime_error("Failed to send keyboard input");
+            }
+        }
 
-  void injectMouseMove(const EventPacket& pkt) {
-      int32_t coords[2];
-      std::memcpy(coords, pkt.payload.data(), sizeof(coords));
-      // Convert to absolute [0,65535] range
-      INPUT input = {};
-      input.type                = INPUT_MOUSE;
-      input.mi.dwFlags          = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
-      input.mi.dx               = coords[0] * (65535 / GetSystemMetrics(SM_CXSCREEN));
-      input.mi.dy               = coords[1] * (65535 / GetSystemMetrics(SM_CYSCREEN));
-      SendInput(1, &input, sizeof(input));
-  }
-
+        static void injectMouseMove(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(int32_t) * 2) {
+                throw std::runtime_error("Invalid mouse move payload size");
+            }
+            
+            int32_t coords[2];
+            std::memcpy(coords, pkt.payload.data(), sizeof(coords));
+            
+            INPUT input = {};
+            input.type = INPUT_MOUSE;
+            input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+            
+            // Convert to absolute [0,65535] range
+            input.mi.dx = static_cast<LONG>(coords[0] * (65535.0 / GetSystemMetrics(SM_CXSCREEN)));
+            input.mi.dy = static_cast<LONG>(coords[1] * (65535.0 / GetSystemMetrics(SM_CYSCREEN)));
+            
+            if (SendInput(1, &input, sizeof(input)) != 1) {
+                throw std::runtime_error("Failed to send mouse input");
+            }
+        }
+    };
+    
+    using PlatformInjector = WindowsEventInjector;
+}
 #endif
 
+// Common implementation using uiohook
 void injectKeyRelease(const EventPacket& pkt) {
     if (pkt.payload.size() < sizeof(uint16_t)) {
-        return;  // Invalid payload size
+        throw std::runtime_error("Invalid key release payload size");
     }
     
     uint16_t keycode;
@@ -78,13 +138,17 @@ void injectKeyRelease(const EventPacket& pkt) {
             }
         }
     };
-    hook_post_event(&event);
+    
+    if (hook_post_event(&event) != UIOHOOK_SUCCESS) {
+        setInjectedEventFlag(false);
+        throw std::runtime_error("Failed to post key release event");
+    }
     setInjectedEventFlag(false);
 }
 
 void injectMouseButtonPress(const EventPacket& pkt) {
     if (pkt.payload.size() < sizeof(uint16_t) + 2 * sizeof(int16_t)) {
-        return;  // Invalid payload size
+        throw std::runtime_error("Invalid mouse button press payload size");
     }
     
     uint16_t button;
@@ -111,13 +175,17 @@ void injectMouseButtonPress(const EventPacket& pkt) {
             }
         }
     };
-    hook_post_event(&event);
+    
+    if (hook_post_event(&event) != UIOHOOK_SUCCESS) {
+        setInjectedEventFlag(false);
+        throw std::runtime_error("Failed to post mouse button press event");
+    }
     setInjectedEventFlag(false);
 }
 
 void injectMouseButtonRelease(const EventPacket& pkt) {
     if (pkt.payload.size() < sizeof(uint16_t) + 2 * sizeof(int16_t)) {
-        return;  // Invalid payload size
+        throw std::runtime_error("Invalid mouse button release payload size");
     }
     
     uint16_t button;
@@ -144,6 +212,19 @@ void injectMouseButtonRelease(const EventPacket& pkt) {
             }
         }
     };
-    hook_post_event(&event);
+    
+    if (hook_post_event(&event) != UIOHOOK_SUCCESS) {
+        setInjectedEventFlag(false);
+        throw std::runtime_error("Failed to post mouse button release event");
+    }
     setInjectedEventFlag(false);
+}
+
+// Platform-specific event injection wrappers
+void injectKeyPress(const EventPacket& pkt) {
+    PlatformInjector::injectKeyPress(pkt);
+}
+
+void injectMouseMove(const EventPacket& pkt) {
+    PlatformInjector::injectMouseMove(pkt);
 }
