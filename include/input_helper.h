@@ -210,7 +210,7 @@ UniChar keycode_to_unicode(CGEventRef event_ref) {
     return 0;
 }
 
-uint16_t scancode_to_keycode(uint16_t keycode) {
+UInt64 scancode_to_keycode(uint16_t keycode) {
     // macOS implementation
     return 0;
 }
