@@ -16,12 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __UIOHOOK_H
-#define __UIOHOOK_H
-
+#pragma once
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+// Ensure uint16_t is not redefined
+#ifndef UINT16_T_DEFINED
+#define UINT16_T_DEFINED
+typedef uint16_t uiohook_uint16_t;
+#endif
 
 /* Begin Error Codes */
 #define UIOHOOK_SUCCESS                          0x00
@@ -81,35 +85,29 @@ typedef struct _screen_data {
     uint8_t number;
     int16_t x;
     int16_t y;
-    uint16_t width;
-    uint16_t height;
+    uiohook_uint16_t width;
+    uiohook_uint16_t height;
 } screen_data;
 
-typedef struct _keyboard_event_data {
-    uint16_t keycode;
-    uint16_t rawcode;
-    uint16_t keychar;
-} keyboard_event_data,
-  key_pressed_event_data,
-  key_released_event_data,
-  key_typed_event_data;
+struct _keyboard_event_data {
+    uiohook_uint16_t keycode;
+    uiohook_uint16_t rawcode;
+    uiohook_uint16_t keychar;
+};
 
-typedef struct _mouse_event_data {
-    uint16_t button;
-    uint16_t clicks;
+struct _mouse_event_data {
+    uiohook_uint16_t button;
+    uiohook_uint16_t clicks;
     int16_t x;
     int16_t y;
-} mouse_event_data,
-  mouse_pressed_event_data,
-  mouse_released_event_data,
-  mouse_clicked_event_data;
+};
 
 typedef struct _mouse_wheel_event_data {
-    uint16_t clicks;
+    uiohook_uint16_t clicks;
     int16_t x;
     int16_t y;
     uint8_t type;
-    uint16_t amount;
+    uiohook_uint16_t amount;
     int16_t rotation;
     uint8_t direction;
 } mouse_wheel_event_data;
@@ -117,11 +115,11 @@ typedef struct _mouse_wheel_event_data {
 typedef struct _uiohook_event {
     event_type type;
     uint64_t time;
-    uint16_t mask;
-    uint16_t reserved;
+    uiohook_uint16_t mask;
+    uiohook_uint16_t reserved;
     union {
-        keyboard_event_data keyboard;
-        mouse_event_data mouse;
+        struct _keyboard_event_data keyboard;
+        struct _mouse_event_data mouse;
         mouse_wheel_event_data wheel;
     } data;
 } uiohook_event;
@@ -452,6 +450,4 @@ extern "C" {
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

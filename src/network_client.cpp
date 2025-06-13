@@ -10,6 +10,7 @@
 #include <uiohook.h>
 #include <chrono>
 #include <openssl/x509.h>
+#include "Injectors.h"
 
 // Adjust these to your host's actual screen resolution:
 static constexpr int HOST_SCREEN_WIDTH  = 1920;

@@ -5,13 +5,7 @@
 #include <cstring>
 
 #include "EventPacket.h"
-
-// Injection declarations
-void injectKeyPress(const EventPacket&);
-void injectKeyRelease(const EventPacket&);
-void injectMouseMove(const EventPacket&);
-void injectMouseButtonPress(const EventPacket&);
-void injectMouseButtonRelease(const EventPacket&);
+#include "Injectors.h"
 
 using boost::asio::ip::tcp;
 namespace ssl = boost::asio::ssl;

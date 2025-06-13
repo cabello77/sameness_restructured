@@ -3,17 +3,28 @@
 # ---------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.16)        # 3.16+ gives good IDE/xcodeproj
+
+# Add vcpkg toolchain
+if(WIN32)
+    set(CMAKE_TOOLCHAIN_FILE "C:/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
+endif()
+
 project(sameness VERSION 0.1 LANGUAGES C CXX)
 
 # Set CMP0167 policy to suppress Boost warning
 cmake_policy(SET CMP0167 NEW)
+
+# Add Boost configuration
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
 
 # ---------------------------------------------------------------------------
 #  Locate Boost (header-only Asio + Boost.System for linking)
 # ---------------------------------------------------------------------------
 find_package(Boost REQUIRED COMPONENTS system)
 if (NOT Boost_FOUND)
-  message(FATAL_ERROR "Could not find Boost. Make sure BOOST_ROOT is set or Boost is installed.")
+  message(FATAL_ERROR "Could not find Boost. Make sure Boost is installed via vcpkg.")
 endif()
 
 # ---------------------------------------------------------------------------
@@ -118,3 +129,19 @@ install(TARGETS
 # ---------------------------------------------------------------------------
 #  enable_testing()  # ← uncomment if/when you add tests under tests/
 # ---------------------------------------------------------------------------
+
+# Copy DLLs to output directory
+if(WIN32)
+    add_custom_command(TARGET sameness_client POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:${Boost_LIBRARIES}>
+            $<TARGET_FILE:${OPENSSL_LIBRARIES}>
+            $<TARGET_FILE_DIR:sameness_client>
+    )
+    add_custom_command(TARGET sameness_server POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:${Boost_LIBRARIES}>
+            $<TARGET_FILE:${OPENSSL_LIBRARIES}>
+            $<TARGET_FILE_DIR:sameness_server>
+    )
+endif()

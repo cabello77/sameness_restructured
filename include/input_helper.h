@@ -23,13 +23,17 @@
 #ifndef _included_input_helper
 #define _included_input_helper
 
+#include <stdint.h>
+#include <stdbool.h>
+
+#if defined(__APPLE__)
 #include <ApplicationServices/ApplicationServices.h>
 #include <Carbon/Carbon.h> // For HIToolbox kVK_ key codes and TIS functions.
+#endif
 
 #ifdef USE_IOKIT
 #include <IOKit/hidsystem/ev_keymap.h>
 #endif
-#include <stdbool.h>
 
 #ifndef USE_IOKIT
 // Some of the system key codes that maybe missing from IOKit.  They appear to have shown up over the years.
@@ -172,6 +176,7 @@
  */
 extern bool is_accessibility_enabled();
 
+#if defined(__APPLE__)
 /* Converts an OSX key code and event mask to the appropriate Unicode character
  * representation.
  */
@@ -184,7 +189,6 @@ extern uint16_t keycode_to_scancode(UInt64 keycode);
 /* Converts a UIOHook scancode constant to the appropriate OSX keycode.
  */
 extern UInt64 scancode_to_keycode(uint16_t keycode);
-
 
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be
@@ -199,5 +203,17 @@ extern void load_input_helper();
  * is changed.
  */
 extern void unload_input_helper();
+
+// macOS-specific functions
+UniChar keycode_to_unicode(CGEventRef event_ref) {
+    // macOS implementation
+    return 0;
+}
+
+uint16_t scancode_to_keycode(uint16_t keycode) {
+    // macOS implementation
+    return 0;
+}
+#endif
 
 #endif

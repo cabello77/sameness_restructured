@@ -20,4 +20,10 @@ struct EventPacket {
     static EventPacket fromBytes(const std::vector<uint8_t>& buffer);
 };
 
+void injectKeyPress(const EventPacket&);
+void injectKeyRelease(const EventPacket&);
+void injectMouseMove(const EventPacket&);
+void injectMouseButtonPress(const EventPacket&);
+void injectMouseButtonRelease(const EventPacket&);
+
 
