@@ -124,6 +124,58 @@ namespace {
                 throw std::runtime_error("Failed to send mouse input");
             }
         }
+
+        static void injectKeyRelease(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint32_t)) {
+                throw std::runtime_error("Invalid key release payload size");
+            }
+            
+            uint32_t code;
+            std::memcpy(&code, pkt.payload.data(), sizeof(code));
+            
+            INPUT input = {};
+            input.type = INPUT_KEYBOARD;
+            input.ki.wVk = static_cast<WORD>(code);
+            input.ki.dwFlags = KEYEVENTF_KEYUP;
+            
+            if (SendInput(1, &input, sizeof(input)) != 1) {
+                throw std::runtime_error("Failed to send keyboard input");
+            }
+        }
+
+        static void injectMouseButtonPress(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint32_t)) {
+                throw std::runtime_error("Invalid mouse button press payload size");
+            }
+            
+            uint32_t button;
+            std::memcpy(&button, pkt.payload.data(), sizeof(button));
+            
+            INPUT input = {};
+            input.type = INPUT_MOUSE;
+            input.mi.dwFlags = static_cast<DWORD>(button);  // MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_RIGHTDOWN, etc.
+            
+            if (SendInput(1, &input, sizeof(input)) != 1) {
+                throw std::runtime_error("Failed to send mouse input");
+            }
+        }
+
+        static void injectMouseButtonRelease(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint32_t)) {
+                throw std::runtime_error("Invalid mouse button release payload size");
+            }
+            
+            uint32_t button;
+            std::memcpy(&button, pkt.payload.data(), sizeof(button));
+            
+            INPUT input = {};
+            input.type = INPUT_MOUSE;
+            input.mi.dwFlags = static_cast<DWORD>(button) << 1;  // Convert DOWN to UP flags
+            
+            if (SendInput(1, &input, sizeof(input)) != 1) {
+                throw std::runtime_error("Failed to send mouse input");
+            }
+        }
     };
     
     using PlatformInjector = WindowsEventInjector;
