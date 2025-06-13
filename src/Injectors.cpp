@@ -263,19 +263,23 @@ namespace {
 }
 #endif
 
-// Platform-specific event injection wrappers
+// Global injection functions that use the platform-specific injector
 void injectKeyPress(const EventPacket& pkt) {
     PlatformInjector::injectKeyPress(pkt);
+}
+
+void injectKeyRelease(const EventPacket& pkt) {
+    PlatformInjector::injectKeyRelease(pkt);
 }
 
 void injectMouseMove(const EventPacket& pkt) {
     PlatformInjector::injectMouseMove(pkt);
 }
 
-// injectKeyRelease, injectMouseButtonPress, and injectMouseButtonRelease are already implemented as standalone functions above and should not be routed through PlatformInjector.
+void injectMouseButtonPress(const EventPacket& pkt) {
+    PlatformInjector::injectMouseButtonPress(pkt);
+}
 
-#if defined(_WIN32)
-void injectKeyRelease(const EventPacket&) {}
-void injectMouseButtonPress(const EventPacket&) {}
-void injectMouseButtonRelease(const EventPacket&) {}
-#endif
+void injectMouseButtonRelease(const EventPacket& pkt) {
+    PlatformInjector::injectMouseButtonRelease(pkt);
+}
