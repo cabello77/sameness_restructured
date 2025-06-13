@@ -23,7 +23,7 @@ EventPacket EventPacket::fromBytes(const std::vector<uint8_t>& buffer) {
     EventPacket pkt;
     size_t offset = 0;
     // 1. type
-    pkt.type = static_cast<EventType>(buffer[offset++]);
+    pkt.type = static_cast<SamenessEventType>(buffer[offset++]);
     // 2. timestamp
     pkt.timestamp = 0;
     for (int i = 0; i < 8; ++i) {

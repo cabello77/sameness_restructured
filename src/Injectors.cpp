@@ -1,13 +1,13 @@
-#include "EventPacket.h"
+#include "../include/EventPacket.h"
 #include <cstring>  // for memcpy
 #include "EventState.h"
 #include <uiohook.h>
 #include <stdexcept>
 #include <memory>
+#include <type_traits>
 
-// Platform-specific implementations
 #if defined(__APPLE__)
-#include <ApplicationServices/ApplicationServices.h>
+#include <CoreGraphics/CoreGraphics.h>
 
 namespace {
     class MacOSEventInjector {
@@ -20,11 +20,12 @@ namespace {
             uint32_t code;
             std::memcpy(&code, pkt.payload.data(), sizeof(code));
             
-            std::unique_ptr<CGEventRef, decltype(&CFRelease)> eDown(
+            using CGEventPtr = std::unique_ptr<std::remove_pointer_t<CGEventRef>, decltype(&CFRelease)>;
+            CGEventPtr eDown(
                 CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, true),
                 CFRelease
             );
-            std::unique_ptr<CGEventRef, decltype(&CFRelease)> eUp(
+            CGEventPtr eUp(
                 CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, false),
                 CFRelease
             );
@@ -37,6 +38,10 @@ namespace {
             CGEventPost(kCGHIDEventTap, eUp.get());
         }
 
+        static void injectKeyRelease(const EventPacket&) {
+            // Not implemented for Mac
+        }
+
         static void injectMouseMove(const EventPacket& pkt) {
             if (pkt.payload.size() < sizeof(int32_t) * 2) {
                 throw std::runtime_error("Invalid mouse move payload size");
@@ -45,7 +50,8 @@ namespace {
             int32_t coords[2];
             std::memcpy(coords, pkt.payload.data(), sizeof(coords));
             
-            std::unique_ptr<CGEventRef, decltype(&CFRelease)> e(
+            using CGEventPtr = std::unique_ptr<std::remove_pointer_t<CGEventRef>, decltype(&CFRelease)>;
+            CGEventPtr e(
                 CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, 
                     CGPointMake(coords[0], coords[1]), kCGMouseButtonLeft),
                 CFRelease
@@ -56,6 +62,14 @@ namespace {
             }
             
             CGEventPost(kCGHIDEventTap, e.get());
+        }
+
+        static void injectMouseButtonPress(const EventPacket&) {
+            // Not implemented for Mac
+        }
+
+        static void injectMouseButtonRelease(const EventPacket&) {
+            // Not implemented for Mac
         }
     };
     
@@ -114,117 +128,154 @@ namespace {
     
     using PlatformInjector = WindowsEventInjector;
 }
+#else
+// Fallback to uiohook for other platforms
+namespace {
+    class UiohookEventInjector {
+    public:
+        static void injectKeyPress(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint16_t)) {
+                return;
+            }
+            uint16_t keycode;
+            std::memcpy(&keycode, pkt.payload.data(), sizeof(keycode));
+            setInjectedEventFlag(true);
+            uiohook_event event = {
+                .type = EVENT_KEY_PRESSED,
+                .time = pkt.timestamp,
+                .mask = 0,
+                .data = {
+                    .keyboard = {
+                        .keycode = keycode,
+                        .rawcode = keycode,
+                        .keychar = 0
+                    }
+                }
+            };
+            hook_post_event(&event);
+            setInjectedEventFlag(false);
+        }
+        static void injectKeyRelease(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint16_t)) {
+                return;
+            }
+            uint16_t keycode;
+            std::memcpy(&keycode, pkt.payload.data(), sizeof(keycode));
+            setInjectedEventFlag(true);
+            uiohook_event event = {
+                .type = EVENT_KEY_RELEASED,
+                .time = pkt.timestamp,
+                .mask = 0,
+                .data = {
+                    .keyboard = {
+                        .keycode = keycode,
+                        .rawcode = keycode,
+                        .keychar = 0
+                    }
+                }
+            };
+            hook_post_event(&event);
+            setInjectedEventFlag(false);
+        }
+        static void injectMouseMove(const EventPacket& pkt) {
+            if (pkt.payload.size() < 2 * sizeof(int32_t)) {
+                return;
+            }
+            int32_t coords[2];
+            std::memcpy(coords, pkt.payload.data(), sizeof(coords));
+            setInjectedEventFlag(true);
+            uiohook_event event = {
+                .type = EVENT_MOUSE_MOVED,
+                .time = pkt.timestamp,
+                .mask = 0,
+                .data = {
+                    .mouse = {
+                        .button = 0,
+                        .clicks = 0,
+                        .x = static_cast<int16_t>(coords[0]),
+                        .y = static_cast<int16_t>(coords[1])
+                    }
+                }
+            };
+            hook_post_event(&event);
+            setInjectedEventFlag(false);
+        }
+        static void injectMouseButtonPress(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint16_t) + 2 * sizeof(int16_t)) {
+                return;
+            }
+            uint16_t button;
+            int16_t x, y;
+            size_t offset = 0;
+            std::memcpy(&button, pkt.payload.data() + offset, sizeof(button));
+            offset += sizeof(button);
+            std::memcpy(&x, pkt.payload.data() + offset, sizeof(x));
+            offset += sizeof(x);
+            std::memcpy(&y, pkt.payload.data() + offset, sizeof(y));
+            setInjectedEventFlag(true);
+            uiohook_event event = {
+                .type = EVENT_MOUSE_PRESSED,
+                .time = pkt.timestamp,
+                .mask = 0,
+                .data = {
+                    .mouse = {
+                        .button = button,
+                        .clicks = 1,
+                        .x = x,
+                        .y = y
+                    }
+                }
+            };
+            hook_post_event(&event);
+            setInjectedEventFlag(false);
+        }
+        static void injectMouseButtonRelease(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint16_t) + 2 * sizeof(int16_t)) {
+                return;
+            }
+            uint16_t button;
+            int16_t x, y;
+            size_t offset = 0;
+            std::memcpy(&button, pkt.payload.data() + offset, sizeof(button));
+            offset += sizeof(button);
+            std::memcpy(&x, pkt.payload.data() + offset, sizeof(x));
+            offset += sizeof(x);
+            std::memcpy(&y, pkt.payload.data() + offset, sizeof(y));
+            setInjectedEventFlag(true);
+            uiohook_event event = {
+                .type = EVENT_MOUSE_RELEASED,
+                .time = pkt.timestamp,
+                .mask = 0,
+                .data = {
+                    .mouse = {
+                        .button = button,
+                        .clicks = 1,
+                        .x = x,
+                        .y = y
+                    }
+                }
+            };
+            hook_post_event(&event);
+            setInjectedEventFlag(false);
+        }
+    };
+    using PlatformInjector = UiohookEventInjector;
+}
 #endif
 
-// Common implementation using uiohook
-void injectKeyRelease(const EventPacket& pkt) {
-    if (pkt.payload.size() < sizeof(uint16_t)) {
-        throw std::runtime_error("Invalid key release payload size");
-    }
-    
-    uint16_t keycode;
-    std::memcpy(&keycode, pkt.payload.data(), sizeof(keycode));
-    
-    setInjectedEventFlag(true);
-    uiohook_event event = {
-        .type = EVENT_KEY_RELEASED,
-        .time = pkt.timestamp,
-        .mask = 0,
-        .data = {
-            .keyboard = {
-                .keycode = keycode,
-                .rawcode = keycode,
-                .keychar = 0
-            }
-        }
-    };
-    
-    if (hook_post_event(&event) != UIOHOOK_SUCCESS) {
-        setInjectedEventFlag(false);
-        throw std::runtime_error("Failed to post key release event");
-    }
-    setInjectedEventFlag(false);
-}
-
-void injectMouseButtonPress(const EventPacket& pkt) {
-    if (pkt.payload.size() < sizeof(uint16_t) + 2 * sizeof(int16_t)) {
-        throw std::runtime_error("Invalid mouse button press payload size");
-    }
-    
-    uint16_t button;
-    int16_t x, y;
-    size_t offset = 0;
-    
-    std::memcpy(&button, pkt.payload.data() + offset, sizeof(button));
-    offset += sizeof(button);
-    std::memcpy(&x, pkt.payload.data() + offset, sizeof(x));
-    offset += sizeof(x);
-    std::memcpy(&y, pkt.payload.data() + offset, sizeof(y));
-    
-    setInjectedEventFlag(true);
-    uiohook_event event = {
-        .type = EVENT_MOUSE_PRESSED,
-        .time = pkt.timestamp,
-        .mask = 0,
-        .data = {
-            .mouse = {
-                .button = button,
-                .clicks = 1,
-                .x = x,
-                .y = y
-            }
-        }
-    };
-    
-    if (hook_post_event(&event) != UIOHOOK_SUCCESS) {
-        setInjectedEventFlag(false);
-        throw std::runtime_error("Failed to post mouse button press event");
-    }
-    setInjectedEventFlag(false);
-}
-
-void injectMouseButtonRelease(const EventPacket& pkt) {
-    if (pkt.payload.size() < sizeof(uint16_t) + 2 * sizeof(int16_t)) {
-        throw std::runtime_error("Invalid mouse button release payload size");
-    }
-    
-    uint16_t button;
-    int16_t x, y;
-    size_t offset = 0;
-    
-    std::memcpy(&button, pkt.payload.data() + offset, sizeof(button));
-    offset += sizeof(button);
-    std::memcpy(&x, pkt.payload.data() + offset, sizeof(x));
-    offset += sizeof(x);
-    std::memcpy(&y, pkt.payload.data() + offset, sizeof(y));
-    
-    setInjectedEventFlag(true);
-    uiohook_event event = {
-        .type = EVENT_MOUSE_RELEASED,
-        .time = pkt.timestamp,
-        .mask = 0,
-        .data = {
-            .mouse = {
-                .button = button,
-                .clicks = 1,
-                .x = x,
-                .y = y
-            }
-        }
-    };
-    
-    if (hook_post_event(&event) != UIOHOOK_SUCCESS) {
-        setInjectedEventFlag(false);
-        throw std::runtime_error("Failed to post mouse button release event");
-    }
-    setInjectedEventFlag(false);
-}
-
-// Platform-specific event injection wrappers
+// Global wrappers that delegate to PlatformInjector
 void injectKeyPress(const EventPacket& pkt) {
     PlatformInjector::injectKeyPress(pkt);
 }
-
+void injectKeyRelease(const EventPacket& pkt) {
+    PlatformInjector::injectKeyRelease(pkt);
+}
 void injectMouseMove(const EventPacket& pkt) {
     PlatformInjector::injectMouseMove(pkt);
+}
+void injectMouseButtonPress(const EventPacket& pkt) {
+    PlatformInjector::injectMouseButtonPress(pkt);
+}
+void injectMouseButtonRelease(const EventPacket& pkt) {
+    PlatformInjector::injectMouseButtonRelease(pkt);
 }

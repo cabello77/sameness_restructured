@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <vector>
 
-enum class EventType : uint8_t {
+enum class SamenessEventType : uint8_t {
     KeyPress            =1,
     KeyRelease          =2,
     MouseMove           =3,
@@ -11,7 +11,7 @@ enum class EventType : uint8_t {
 }; 
 
 struct EventPacket {
-    EventType type;
+    SamenessEventType type;
     uint64_t timestamp;
     uint32_t payloadSize;
     std::vector<uint8_t> payload;

@@ -62,19 +62,19 @@ int main() {
 
             // Route to injection
             switch (pkt.type) {
-                case EventType::KeyPress:
+                case SamenessEventType::KeyPress:
                     injectKeyPress(pkt);
                     break;
-                case EventType::KeyRelease:
+                case SamenessEventType::KeyRelease:
                     injectKeyRelease(pkt);
                     break;
-                case EventType::MouseMove:
+                case SamenessEventType::MouseMove:
                     injectMouseMove(pkt);
                     break;
-                case EventType::MouseButtonPress:
+                case SamenessEventType::MouseButtonPress:
                     injectMouseButtonPress(pkt);
                     break;
-                case EventType::MouseButtonRelease:
+                case SamenessEventType::MouseButtonRelease:
                     injectMouseButtonRelease(pkt);
                     break;
                 default:
