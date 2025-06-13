@@ -99,6 +99,7 @@ target_link_libraries(sameness_client
       Boost::system        # for boost::system::error_code etc.
       OpenSSL::SSL         # for SSL functions (BIO_*, SSL_*)
       OpenSSL::Crypto      # for the underlying crypto symbols
+      uiohook
 )
 
 # ---------------------------------------------------------------------------
@@ -112,7 +113,14 @@ target_link_libraries(sameness_server
       Boost::system        # for boost::system::error_code etc.
       OpenSSL::SSL         # for SSL functions (BIO_*, SSL_*)
       OpenSSL::Crypto      # for the underlying crypto symbols
+      uiohook
 )
+
+# Windows-specific libraries
+if (WIN32)
+    target_link_libraries(sameness_client PRIVATE user32 gdi32)
+    target_link_libraries(sameness_server PRIVATE user32 gdi32)
+endif()
 
 # ---------------------------------------------------------------------------
 #  Optional install rules  (cmake --install build/)
