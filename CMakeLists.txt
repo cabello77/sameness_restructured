@@ -55,7 +55,9 @@ set(SAMENESS_CORE_SOURCES
     src/EventPacket.cpp
     src/EventState.cpp
     src/Injectors.cpp
-    src/logger.c           # ⬅ remove this line if you don't use logger.c
+    src/logger.c     
+    src/ScreenEdgeSwitcher.cpp      # ← add this line
+    # ⬅ remove this line if you don't use logger.c
 )
 
 add_library(sameness_core STATIC ${SAMENESS_CORE_SOURCES})
@@ -66,6 +68,14 @@ target_include_directories(sameness_core
 )
 
 target_link_libraries(sameness_core PRIVATE uiohook)
+
+
+target_link_libraries(core
+    ${UIOHOOK_LIB}
+    Boost::system
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)
 
 # ---------------------------------------------------------------------------
 #  Client executable
