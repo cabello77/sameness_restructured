@@ -5,10 +5,10 @@
 #include <stdexcept>
 #include <memory>
 #include <type_traits>
+#include <CoreGraphics/CoreGraphics.h>
+#include <iostream>
 
 #if defined(__APPLE__)
-#include <CoreGraphics/CoreGraphics.h>
-
 namespace {
     class MacOSEventInjector {
     public:
@@ -19,6 +19,7 @@ namespace {
             
             uint32_t code;
             std::memcpy(&code, pkt.payload.data(), sizeof(code));
+            std::cout << "Injecting key press: " << code << std::endl;
             
             using CGEventPtr = std::unique_ptr<std::remove_pointer_t<CGEventRef>, decltype(&CFRelease)>;
             CGEventPtr eDown(
@@ -40,6 +41,7 @@ namespace {
             
             uint32_t code;
             std::memcpy(&code, pkt.payload.data(), sizeof(code));
+            std::cout << "Injecting key release: " << code << std::endl;
             
             using CGEventPtr = std::unique_ptr<std::remove_pointer_t<CGEventRef>, decltype(&CFRelease)>;
             CGEventPtr eUp(
@@ -61,11 +63,21 @@ namespace {
             
             int32_t coords[2];
             std::memcpy(coords, pkt.payload.data(), sizeof(coords));
+            std::cout << "Injecting mouse move to: (" << coords[0] << ", " << coords[1] << ")" << std::endl;
+            
+            // Get screen dimensions
+            CGRect screenBounds = CGDisplayBounds(CGMainDisplayID());
+            float screenWidth = CGRectGetWidth(screenBounds);
+            float screenHeight = CGRectGetHeight(screenBounds);
+            
+            // Convert to screen coordinates
+            float x = (coords[0] + screenWidth) * (screenWidth / (2 * screenWidth));
+            float y = coords[1] * (screenHeight / screenHeight);
             
             using CGEventPtr = std::unique_ptr<std::remove_pointer_t<CGEventRef>, decltype(&CFRelease)>;
             CGEventPtr e(
                 CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, 
-                    CGPointMake(coords[0], coords[1]), kCGMouseButtonLeft),
+                    CGPointMake(x, y), kCGMouseButtonLeft),
                 CFRelease
             );
             
@@ -76,12 +88,78 @@ namespace {
             CGEventPost(kCGHIDEventTap, e.get());
         }
 
-        static void injectMouseButtonPress(const EventPacket&) {
-            // Not implemented for Mac
+        static void injectMouseButtonPress(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint8_t) + sizeof(int32_t) * 2) {
+                throw std::runtime_error("Invalid mouse button press payload size");
+            }
+            
+            size_t off = 0;
+            uint8_t button;
+            std::memcpy(&button, pkt.payload.data() + off, sizeof(button));
+            off += sizeof(button);
+            
+            int32_t coords[2];
+            std::memcpy(coords, pkt.payload.data() + off, sizeof(coords));
+            std::cout << "Injecting mouse button press: " << (int)button << " at (" << coords[0] << ", " << coords[1] << ")" << std::endl;
+            
+            // Get screen dimensions
+            CGRect screenBounds = CGDisplayBounds(CGMainDisplayID());
+            float screenWidth = CGRectGetWidth(screenBounds);
+            float screenHeight = CGRectGetHeight(screenBounds);
+            
+            // Convert to screen coordinates
+            float x = (coords[0] + screenWidth) * (screenWidth / (2 * screenWidth));
+            float y = coords[1] * (screenHeight / screenHeight);
+            
+            using CGEventPtr = std::unique_ptr<std::remove_pointer_t<CGEventRef>, decltype(&CFRelease)>;
+            CGEventPtr e(
+                CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, 
+                    CGPointMake(x, y), kCGMouseButtonLeft),
+                CFRelease
+            );
+            
+            if (!e) {
+                throw std::runtime_error("Failed to create mouse event");
+            }
+            
+            CGEventPost(kCGHIDEventTap, e.get());
         }
 
-        static void injectMouseButtonRelease(const EventPacket&) {
-            // Not implemented for Mac
+        static void injectMouseButtonRelease(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint8_t) + sizeof(int32_t) * 2) {
+                throw std::runtime_error("Invalid mouse button release payload size");
+            }
+            
+            size_t off = 0;
+            uint8_t button;
+            std::memcpy(&button, pkt.payload.data() + off, sizeof(button));
+            off += sizeof(button);
+            
+            int32_t coords[2];
+            std::memcpy(coords, pkt.payload.data() + off, sizeof(coords));
+            std::cout << "Injecting mouse button release: " << (int)button << " at (" << coords[0] << ", " << coords[1] << ")" << std::endl;
+            
+            // Get screen dimensions
+            CGRect screenBounds = CGDisplayBounds(CGMainDisplayID());
+            float screenWidth = CGRectGetWidth(screenBounds);
+            float screenHeight = CGRectGetHeight(screenBounds);
+            
+            // Convert to screen coordinates
+            float x = (coords[0] + screenWidth) * (screenWidth / (2 * screenWidth));
+            float y = coords[1] * (screenHeight / screenHeight);
+            
+            using CGEventPtr = std::unique_ptr<std::remove_pointer_t<CGEventRef>, decltype(&CFRelease)>;
+            CGEventPtr e(
+                CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, 
+                    CGPointMake(x, y), kCGMouseButtonLeft),
+                CFRelease
+            );
+            
+            if (!e) {
+                throw std::runtime_error("Failed to create mouse event");
+            }
+            
+            CGEventPost(kCGHIDEventTap, e.get());
         }
     };
     
