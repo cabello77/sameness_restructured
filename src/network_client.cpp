@@ -244,7 +244,29 @@ int main(int argc, char* argv[]) {
         
         // Set up SSL context
         boost::asio::ssl::context ssl_context(boost::asio::ssl::context::tlsv12_client);
-        ssl_context.load_verify_file("server.crt");
+        
+        // Try to load the certificate from different possible locations
+        const char* cert_paths[] = {
+            "server.crt",
+            "../certs/server.crt",
+            "certs/server.crt"
+        };
+        
+        bool cert_loaded = false;
+        for (const char* path : cert_paths) {
+            try {
+                ssl_context.load_verify_file(path);
+                std::cout << "Loaded certificate from: " << path << std::endl;
+                cert_loaded = true;
+                break;
+            } catch (const std::exception& e) {
+                std::cout << "Failed to load certificate from " << path << ": " << e.what() << std::endl;
+            }
+        }
+        
+        if (!cert_loaded) {
+            throw std::runtime_error("Could not load SSL certificate from any location");
+        }
         
         // Create SSL socket
         boost::asio::ssl::stream<boost::asio::ip::tcp::socket> ssl_socket(io_context, ssl_context);
