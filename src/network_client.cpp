@@ -198,60 +198,84 @@ void hook_callback(uiohook_event * const event, boost::asio::ssl::stream<boost::
     }
 }
 
-int main(int argc, char* argv[]) {
-    try {
-        if (argc != 2) {
-            std::cerr << "Usage: " << argv[0] << " <server_address>" << std::endl;
-            return 1;
-        }
+void printUsage(const char* programName) {
+    std::cerr << "Usage: " << programName << " <server_address> [--width <width>] [--height <height>] [--edge <edge_threshold>] [--help]" << std::endl;
+    std::cerr << "  server_address: The address of the server to connect to." << std::endl;
+    std::cerr << "  --width: The width of the screen in pixels (default: " << HOST_SCREEN_WIDTH << ")." << std::endl;
+    std::cerr << "  --height: The height of the screen in pixels (default: " << HOST_SCREEN_HEIGHT << ")." << std::endl;
+    std::cerr << "  --edge: The edge threshold in pixels (default: " << EDGE_THRESHOLD << ")." << std::endl;
+    std::cerr << "  --help: Display this help message and exit." << std::endl;
+}
 
-        // Set up Boost ASIO context and SSL context
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        printUsage(argv[0]);
+        return 1;
+    }
+
+    std::string serverAddress = argv[1];
+
+    // Parse command line arguments
+    for (int i = 2; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "--width" && i + 1 < argc) {
+            HOST_SCREEN_WIDTH = std::stoi(argv[++i]);
+        } else if (arg == "--height" && i + 1 < argc) {
+            HOST_SCREEN_HEIGHT = std::stoi(argv[++i]);
+        } else if (arg == "--edge" && i + 1 < argc) {
+            EDGE_THRESHOLD = std::stoi(argv[++i]);
+        } else if (arg == "--help") {
+            printUsage(argv[0]);
+            return 0;
+        }
+    }
+
+    std::cout << "Display settings:\n"
+              << "  Width: " << HOST_SCREEN_WIDTH << " pixels\n"
+              << "  Height: " << HOST_SCREEN_HEIGHT << " pixels\n"
+              << "  Edge threshold: " << EDGE_THRESHOLD << " pixels\n";
+
+    // Initialize the edge switcher with current settings
+    edgeSwitcher = std::make_unique<ScreenEdgeSwitcher>(HOST_SCREEN_WIDTH, HOST_SCREEN_HEIGHT);
+    edgeSwitcher->setEdgeThreshold(EDGE_THRESHOLD);
+
+    try {
         boost::asio::io_context io_context;
+        
+        // Set up SSL context
         boost::asio::ssl::context ssl_context(boost::asio::ssl::context::tlsv12_client);
+        ssl_context.load_verify_file("server.crt");
         
-        // Configure SSL context
-        ssl_context.set_verify_mode(boost::asio::ssl::verify_peer);
-        // Only use default verification for now
-        // ssl_context.set_verify_callback(...); // Not needed
-        
-        // Load CA certificate for server verification
-        ssl_context.load_verify_file("ca.crt");
-        
-        // Set up SSL socket
+        // Create SSL socket
         boost::asio::ssl::stream<boost::asio::ip::tcp::socket> ssl_socket(io_context, ssl_context);
+        g_ssl_socket_ptr = &ssl_socket;
         
-        // Resolve the server address
+        // Resolve server address
         boost::asio::ip::tcp::resolver resolver(io_context);
-        auto endpoints = resolver.resolve(argv[1], "12345");
+        auto endpoints = resolver.resolve(serverAddress, "12345");
         
-        // Connect to the server
+        // Connect to server
         boost::asio::connect(ssl_socket.lowest_layer(), endpoints);
         ssl_socket.lowest_layer().set_option(boost::asio::ip::tcp::no_delay(true));
         
         // Perform SSL handshake
-        try {
-            ssl_socket.handshake(boost::asio::ssl::stream_base::client);
-            std::cout << "SSL handshake successful" << std::endl;
-        } catch (const boost::system::system_error& e) {
-            std::cerr << "SSL handshake failed: " << e.what() << std::endl;
-            return 1;
-        }
-
-        // Set global pointer for dispatch
-        g_ssl_socket_ptr = &ssl_socket;
+        ssl_socket.handshake(boost::asio::ssl::stream_base::client);
+        
+        std::cout << "Connected to server at " << serverAddress << std::endl;
+        
+        // Set up uiohook
         hook_set_dispatch_proc(dispatch_hook);
-
-        // Start the hook event loop
         if (hook_run() != UIOHOOK_SUCCESS) {
-            std::cerr << "Failed to start uiohook event loop" << std::endl;
-            return 1;
+            throw std::runtime_error("Failed to start input hook");
         }
-
-        // Run the IO context
+        
+        // Run the io_context
         io_context.run();
+        
     } catch (const std::exception& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
+    
     return 0;
 }
