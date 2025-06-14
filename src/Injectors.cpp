@@ -25,21 +25,33 @@ namespace {
                 CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, true),
                 CFRelease
             );
+            
+            if (!eDown) {
+                throw std::runtime_error("Failed to create keyboard event");
+            }
+            
+            CGEventPost(kCGHIDEventTap, eDown.get());
+        }
+
+        static void injectKeyRelease(const EventPacket& pkt) {
+            if (pkt.payload.size() < sizeof(uint32_t)) {
+                throw std::runtime_error("Invalid key release payload size");
+            }
+            
+            uint32_t code;
+            std::memcpy(&code, pkt.payload.data(), sizeof(code));
+            
+            using CGEventPtr = std::unique_ptr<std::remove_pointer_t<CGEventRef>, decltype(&CFRelease)>;
             CGEventPtr eUp(
                 CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, false),
                 CFRelease
             );
             
-            if (!eDown || !eUp) {
-                throw std::runtime_error("Failed to create keyboard events");
+            if (!eUp) {
+                throw std::runtime_error("Failed to create keyboard event");
             }
             
-            CGEventPost(kCGHIDEventTap, eDown.get());
             CGEventPost(kCGHIDEventTap, eUp.get());
-        }
-
-        static void injectKeyRelease(const EventPacket&) {
-            // Not implemented for Mac
         }
 
         static void injectMouseMove(const EventPacket& pkt) {

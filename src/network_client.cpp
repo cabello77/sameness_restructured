@@ -105,6 +105,7 @@ void hook_callback(uiohook_event * const event, boost::asio::ssl::stream<boost::
                 pkt.type = SamenessEventType::KeyPress;
                 {
                     uint32_t code = event->data.keyboard.keycode;
+                    std::cout << "Key pressed: " << code << std::endl;
                     if (code == 0) {
                         throw std::runtime_error("Invalid key code");
                     }
@@ -118,6 +119,7 @@ void hook_callback(uiohook_event * const event, boost::asio::ssl::stream<boost::
                 pkt.type = SamenessEventType::KeyRelease;
                 {
                     uint32_t code = event->data.keyboard.keycode;
+                    std::cout << "Key released: " << code << std::endl;
                     if (code == 0) {
                         throw std::runtime_error("Invalid key code");
                     }
