@@ -9,8 +9,8 @@ enum class ControlState {
 
 class ScreenEdgeSwitcher {
 public:
-    // hostWidth: width in pixels of the host’s screen (e.g. 1920)
-    // hostHeight: height in pixels of the host’s screen (not used here, but for future extension)
+    // hostWidth: width in pixels of the host's screen (e.g. 1920)
+    // hostHeight: height in pixels of the host's screen (not used here, but for future extension)
     ScreenEdgeSwitcher(int hostWidth, int hostHeight);
 
     // Call on every mouse-move event.
@@ -20,8 +20,11 @@ public:
     // Helper: are we currently forwarding to client?
     bool isClientControlled() const;
 
+    void setEdgeThreshold(int threshold);
+
 private:
     int hostWidth_;
-    // int hostHeight_; // reserved for future multi-monitor logic
+    int hostHeight_;
+    int edgeThreshold_;
     ControlState state_ = ControlState::HOST;
 };
