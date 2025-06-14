@@ -58,18 +58,23 @@ int main() {
             // Route to injection
             switch (pkt.type) {
                 case SamenessEventType::KeyPress:
+                    std::cout << "Received KeyPress event" << std::endl;
                     injectKeyPress(pkt);
                     break;
                 case SamenessEventType::KeyRelease:
+                    std::cout << "Received KeyRelease event" << std::endl;
                     injectKeyRelease(pkt);
                     break;
                 case SamenessEventType::MouseMove:
+                    std::cout << "Received MouseMove event" << std::endl;
                     injectMouseMove(pkt);
                     break;
                 case SamenessEventType::MouseButtonPress:
+                    std::cout << "Received MouseButtonPress event" << std::endl;
                     injectMouseButtonPress(pkt);
                     break;
                 case SamenessEventType::MouseButtonRelease:
+                    std::cout << "Received MouseButtonRelease event" << std::endl;
                     injectMouseButtonRelease(pkt);
                     break;
                 default:

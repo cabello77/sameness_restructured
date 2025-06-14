@@ -60,6 +60,8 @@ void hook_callback(uiohook_event * const event, boost::asio::ssl::stream<boost::
         throw std::runtime_error("Null event received in hook_callback");
     }
 
+    std::cout << "Received event type: " << event->type << std::endl;
+
     EventPacket pkt;
     pkt.timestamp = currentMicroseconds();
 
@@ -68,12 +70,15 @@ void hook_callback(uiohook_event * const event, boost::asio::ssl::stream<boost::
         int x = event->data.mouse.x;
         int y = event->data.mouse.y;
         
+        std::cout << "Mouse moved to: (" << x << ", " << y << ")" << std::endl;
+        
         // Validate coordinates
         if (x < 0 || y < 0) {
             throw std::runtime_error("Invalid mouse coordinates");
         }
         
         ControlState newState = edgeSwitcher.update(x, y);
+        std::cout << "Control state: " << (newState == ControlState::HOST ? "HOST" : "CLIENT") << std::endl;
 
         if (newState == ControlState::HOST) {
             // Host-controlled: do NOT forward mouse moves
