@@ -12,12 +12,13 @@
 #include <openssl/x509.h>
 #include "Injectors.h"
 
-// Adjust these to your host's actual screen resolution:
-static constexpr int HOST_SCREEN_WIDTH  = 1920;
-static constexpr int HOST_SCREEN_HEIGHT = 1080;
+// Default display settings
+static int HOST_SCREEN_WIDTH = 1920;
+static int HOST_SCREEN_HEIGHT = 1080;
+static int EDGE_THRESHOLD = 20;
 
-// Global switcher instance:
-static ScreenEdgeSwitcher edgeSwitcher(HOST_SCREEN_WIDTH, HOST_SCREEN_HEIGHT);
+// Global switcher instance (will be initialized in main)
+static std::unique_ptr<ScreenEdgeSwitcher> edgeSwitcher;
 
 // Global pointer for SSL socket
 static boost::asio::ssl::stream<boost::asio::ip::tcp::socket>* g_ssl_socket_ptr = nullptr;
@@ -77,7 +78,7 @@ void hook_callback(uiohook_event * const event, boost::asio::ssl::stream<boost::
             throw std::runtime_error("Invalid mouse coordinates");
         }
         
-        ControlState newState = edgeSwitcher.update(x, y);
+        ControlState newState = edgeSwitcher->update(x, y);
         std::cout << "Control state: " << (newState == ControlState::HOST ? "HOST" : "CLIENT") << std::endl;
 
         if (newState == ControlState::HOST) {
@@ -96,7 +97,7 @@ void hook_callback(uiohook_event * const event, boost::asio::ssl::stream<boost::
 
     } else {
         // Other events: only forward if in CLIENT state
-        if (!edgeSwitcher.isClientControlled()) {
+        if (!edgeSwitcher->isClientControlled()) {
             return;
         }
 
