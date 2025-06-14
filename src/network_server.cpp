@@ -15,6 +15,8 @@ int main() {
         boost::asio::io_context io_context;
         ssl::context ctx(ssl::context::tlsv12_server);
         ctx.set_options(ssl::context::default_workarounds);
+        ctx.set_verify_mode(ssl::verify_peer | ssl::verify_fail_if_no_peer_cert);
+        ctx.load_verify_file("ca.crt");
         ctx.use_certificate_chain_file("server.crt");
         ctx.use_private_key_file("server.key", ssl::context::pem);
 
